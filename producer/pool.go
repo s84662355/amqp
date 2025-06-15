@@ -71,10 +71,9 @@ func (p *Pool) put(task *ChannelTask) error {
 	}
 }
 
-func (p *Pool) Stop(ctx context.Context) {
+func (p *Pool) Stop() {
 	p.stop.Do(func() {
 		p.taskQueue.Close()
-		<-ctx.Done()
 		p.cancel()
 		<-p.done
 		wg := &sync.WaitGroup{}
@@ -83,7 +82,7 @@ func (p *Pool) Stop(ctx context.Context) {
 			wg.Add(1)
 			go func() {
 				defer wg.Done()
-				conn.Stop(ctx)
+				conn.Stop()
 			}()
 		}
 	})

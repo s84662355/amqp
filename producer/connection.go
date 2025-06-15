@@ -46,9 +46,8 @@ func NewConnection(
 	return conn
 }
 
-func (conn *Connection) Stop(ctx context.Context) {
+func (conn *Connection) Stop() {
 	conn.stop.Do(func() {
-		<-ctx.Done()
 		conn.cancel()
 		conn.wg.Wait()
 	})

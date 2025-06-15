@@ -9,6 +9,7 @@ import(
 
 func main(){
    pool := producer.NewPool(2,5,"amqp://guest:guest@localhost:5672/",amqp.Config{})
+   	defer pool.Stop()
 
    err:=pool. Put(context.Background(),func(ch producer.Channel)error{
         return ch.ExchangeDeclare(
@@ -24,8 +25,7 @@ func main(){
 	 
 
    fmt.Println(err)
-   select{
-   }
+ 
 	 
 
 }
