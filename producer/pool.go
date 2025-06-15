@@ -60,6 +60,12 @@ func (p *Pool) put(task *ChannelTask) error {
 		return err
 	}
 	select {
+	case <-p.ctx.Done():
+		if task.isRun.CompareAndSwap(false, true) {
+			return fmt.Errorf("连接已经关闭")
+		}
+		err := <-task.res
+		return err
 	case <-task.ctx.Done():
 		if task.isRun.CompareAndSwap(false, true) {
 			return fmt.Errorf("处理超时")

@@ -145,6 +145,7 @@ func (q *nqueue[T]) DequeueWait() (t T, ok bool, isClose bool) {
 }
 
 type DequeueFunc[T any] func(t T, isClose bool) bool
+
 // DequeueFunc 方法是一个阻塞的出队方法，会不断出队元素并调用传入的函数 fn 进行处理。
 // 直到 fn 函数返回 false 或队列关闭且为空。
 // 返回一个错误信息，如果队列关闭且为空，返回相应的错误。

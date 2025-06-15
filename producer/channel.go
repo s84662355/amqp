@@ -2,11 +2,9 @@ package producer
 
 import (
 	"context"
- 
-	 
 	"sync/atomic"
 	"time"
-    
+
 	"github.com/streadway/amqp"
 )
 
