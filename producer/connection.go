@@ -61,8 +61,23 @@ func (conn *Connection) run() {
 		default:
 			aconn, err := amqp.DialConfig(conn.url, conn.config)
 			if err == nil {
-				conn.runChannel(aconn)
+
+				done := make(chan struct{})
+				go func() {
+					defer close(done)
+					conn.runChannel(aconn)
+				}()
+
+				select {
+				case <-done:
+				case <-conn.ctx.Done():
+				}
 				aconn.Close()
+
+				for range done {
+					/* code */
+				}
+
 			} else {
 				fmt.Println(err)
 			}

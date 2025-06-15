@@ -48,25 +48,24 @@ func NewPool(
 }
 
 func (p *Pool) Put(ctx context.Context, f channelTaskFunc) error {
-	return p.put(&ChannelTask{
-		ctx: ctx,
+	return p.put(ctx, &ChannelTask{
 		f:   f,
 		res: make(chan error),
 	})
 }
 
-func (p *Pool) put(task *ChannelTask) error {
+func (p *Pool) put(ctx context.Context, task *ChannelTask) error {
 	if err := p.taskQueue.Enqueue(task); err != nil {
 		return err
 	}
 	select {
 	case <-p.ctx.Done():
 		if task.isRun.CompareAndSwap(false, true) {
-			return fmt.Errorf("连接已经关闭")
+			return fmt.Errorf("连接池已经关闭")
 		}
 		err := <-task.res
 		return err
-	case <-task.ctx.Done():
+	case <-ctx.Done():
 		if task.isRun.CompareAndSwap(false, true) {
 			return fmt.Errorf("处理超时")
 		}

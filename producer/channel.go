@@ -11,7 +11,6 @@ import (
 type channelTaskFunc func(c Channel) error
 
 type ChannelTask struct {
-	ctx   context.Context
 	f     channelTaskFunc
 	isRun atomic.Bool
 	res   chan error

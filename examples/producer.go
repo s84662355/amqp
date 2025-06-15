@@ -12,7 +12,7 @@ func main() {
 	pool := producer.NewPool(2, 5, "amqp://guest:guest@localhost:5672/", amqp.Config{})
 	defer pool.Stop()
 
-	for i := 0; i < 10; i++ {
+	for i := 0; i < 20; i++ {
 		err := pool.Put(context.Background(), func(ch producer.Channel) error {
 			return ch.ExchangeDeclare(
 				fmt.Sprintf("myExchange_%d", i), // 交换机名称
