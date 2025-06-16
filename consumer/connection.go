@@ -18,8 +18,7 @@ type Connection struct {
 	url         string
 	wg          sync.WaitGroup
 	stop        sync.Once
-	mu          sync.RWMutex
-	notifyClose chan *amqp.Error
+	mu          sync.RWMutex 
 	status      bool
 }
 
