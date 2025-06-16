@@ -18,7 +18,7 @@ type Connection struct {
 	url         string
 	wg          sync.WaitGroup
 	stop        sync.Once
-	mu          sync.RWMutex 
+	mu          sync.RWMutex
 	status      bool
 }
 
@@ -140,7 +140,6 @@ func (conn *Connection) runChannel(c *amqp.Connection, notifyClose chan *amqp.Er
 					conn.channelPool = slices.DeleteFunc(conn.channelPool, func(n *channel) bool {
 						return n == ch // delete
 					})
-					fmt.Println(conn.channelPool)
 					conn.mu.Unlock()
 
 				}

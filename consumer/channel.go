@@ -145,9 +145,9 @@ func (ch *channel) runTask(achannel *amqp.Channel) {
 
 	select {
 	case <-ch.ctx.Done():
-		return
+
 	case <-notifyClose:
-		return
+
 	case <-done:
 
 	}
