@@ -47,7 +47,7 @@ func NewPool(
 	return p
 }
 
-func (p *Pool) Put(ctx context.Context, f channelTaskFunc) error {
+func (p *Pool) Put(ctx context.Context, f ChannelTaskFunc) error {
 	return p.put(ctx, &ChannelTask{
 		f:   f,
 		res: make(chan error),

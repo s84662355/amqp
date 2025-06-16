@@ -8,10 +8,10 @@ import (
 	"github.com/streadway/amqp"
 )
 
-type channelTaskFunc func(c Channel) error
+type ChannelTaskFunc func(c Channel) error
 
 type ChannelTask struct {
-	f     channelTaskFunc
+	f     ChannelTaskFunc
 	isRun atomic.Bool
 	res   chan error
 }
@@ -22,11 +22,65 @@ type Channel interface {
 	ExchangeDelete(name string, ifUnused, noWait bool) error
 	ExchangeBind(destination, key, source string, noWait bool, args amqp.Table) error
 	ExchangeUnbind(destination, key, source string, noWait bool, args amqp.Table) error
+	NotifyConfirm(ack, nack chan uint64) (chan uint64, chan uint64)
+	NotifyPublish(confirm chan amqp.Confirmation) chan amqp.Confirmation
 	Publish(exchange, key string, mandatory, immediate bool, msg amqp.Publishing) error
 	Tx() error
 	TxCommit() error
 	TxRollback() error
 	Confirm(noWait bool) error
+}
+
+type Ch struct {
+	achannel *amqp.Channel
+}
+
+func (ch *Ch) ExchangeDeclare(name, kind string, durable, autoDelete, internal, noWait bool, args amqp.Table) error {
+	return ch.achannel.ExchangeDeclare(name, kind, durable, autoDelete, internal, noWait, args)
+}
+
+func (ch *Ch) ExchangeDeclarePassive(name, kind string, durable, autoDelete, internal, noWait bool, args amqp.Table) error {
+	return ch.achannel.ExchangeDeclarePassive(name, kind, durable, autoDelete, internal, noWait, args)
+}
+
+func (ch *Ch) ExchangeDelete(name string, ifUnused, noWait bool) error {
+	return ch.achannel.ExchangeDelete(name, ifUnused, noWait)
+}
+
+func (ch *Ch) ExchangeBind(destination, key, source string, noWait bool, args amqp.Table) error {
+	return ch.achannel.ExchangeBind(destination, key, source, noWait, args)
+}
+
+func (ch *Ch) ExchangeUnbind(destination, key, source string, noWait bool, args amqp.Table) error {
+	return ch.achannel.ExchangeUnbind(destination, key, source, noWait, args)
+}
+
+func (ch *Ch) NotifyConfirm(ack, nack chan uint64) (chan uint64, chan uint64) {
+	return ch.achannel.NotifyConfirm(ack, nack)
+}
+
+func (ch *Ch) NotifyPublish(confirm chan amqp.Confirmation) chan amqp.Confirmation {
+	return ch.achannel.NotifyPublish(confirm)
+}
+
+func (ch *Ch) Publish(exchange, key string, mandatory, immediate bool, msg amqp.Publishing) error {
+	return ch.achannel.Publish(exchange, key, mandatory, immediate, msg)
+}
+
+func (ch *Ch) Tx() error {
+	return ch.achannel.Tx()
+}
+
+func (ch *Ch) TxCommit() error {
+	return ch.achannel.TxCommit()
+}
+
+func (ch *Ch) TxRollback() error {
+	return ch.achannel.TxRollback()
+}
+
+func (ch *Ch) Confirm(noWait bool) error {
+	return ch.achannel.Confirm(noWait)
 }
 
 type channel struct {
@@ -60,6 +114,9 @@ func (ch *channel) run() {
 
 func (ch *channel) runTask(achannel *amqp.Channel) {
 	notifyClose := achannel.NotifyClose(make(chan *amqp.Error, 1))
+	c := &Ch{
+		achannel: achannel,
+	}
 	for {
 		select {
 		case <-ch.ctx.Done():
@@ -71,7 +128,7 @@ func (ch *channel) runTask(achannel *amqp.Channel) {
 				if !t.isRun.CompareAndSwap(false, true) {
 					continue
 				}
-				t.res <- t.f(achannel)
+				t.res <- t.f(c)
 			} else {
 				return
 			}
