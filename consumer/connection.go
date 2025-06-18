@@ -16,10 +16,10 @@ type Connection struct {
 	channelPool []*channel
 	config      amqp.Config
 	url         string
-	wg          sync.WaitGroup
 	stop        sync.Once
 	mu          sync.RWMutex
 	status      bool
+	done        chan struct{}
 }
 
 func NewConnection(
@@ -31,7 +31,6 @@ func NewConnection(
 		url:    url,
 	}
 	conn.ctx, conn.cancel = context.WithCancel(context.Background())
-
 	return conn
 }
 
@@ -47,16 +46,14 @@ func (conn *Connection) AddTask(f ConsumerFunc) error {
 	if conn.status {
 		return fmt.Errorf("连接已经开启,不能再添加任务")
 	}
-
 	conn.channelPool = append(conn.channelPool, &channel{
 		ctx: conn.ctx,
 		f:   f,
 	})
-
 	return nil
 }
 
-func (conn *Connection) Start() {
+func (conn *Connection) Start() <-chan struct{} {
 	conn.stop.Do(func() {
 		conn.mu.Lock()
 		defer conn.mu.Unlock()
@@ -65,15 +62,14 @@ func (conn *Connection) Start() {
 			return
 		default:
 		}
-
 		conn.status = true
-
-		conn.wg.Add(1)
+		conn.done = make(chan struct{})
 		go func() {
-			defer conn.wg.Done()
+			defer close(conn.done)
 			conn.run()
 		}()
 	})
+	return conn.done
 }
 
 func (conn *Connection) Stop() {
@@ -81,7 +77,9 @@ func (conn *Connection) Stop() {
 		conn.mu.Lock()
 		conn.cancel()
 		conn.mu.Unlock()
-		conn.wg.Wait()
+		if conn.done != nil {
+			<-conn.done
+		}
 	})
 }
 
@@ -114,6 +112,9 @@ func (conn *Connection) run() {
 				fmt.Println(err)
 			}
 
+			if len(conn.channelPool) == 0 {
+				return
+			}
 			ctx, _ := context.WithTimeout(conn.ctx, 1*time.Second)
 			<-ctx.Done()
 		}

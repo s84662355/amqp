@@ -22,7 +22,15 @@ func NewPool(
 	channelCount int,
 	url string,
 	config amqp.Config,
-) *Pool {
+) (*Pool, error) {
+	if connCount < 1 {
+		return nil, fmt.Errorf("connCount 参数小于1")
+	}
+
+	if channelCount < 1 {
+		return nil, fmt.Errorf("channelCount 参数小于1")
+	}
+
 	p := &Pool{
 		taskQueue: newnqueue[*ChannelTask](),
 		done:      make(chan struct{}),
@@ -30,7 +38,8 @@ func NewPool(
 	tChan := make(chan *ChannelTask, 0)
 	p.connectionPool = make([]*Connection, connCount)
 	for i := 0; i < connCount; i++ {
-		p.connectionPool[i] = NewConnection(channelCount, tChan, url, config)
+		conn, _ := NewConnection(channelCount, tChan, url, config)
+		p.connectionPool[i] = conn
 	}
 	p.ctx, p.cancel = context.WithCancel(context.Background())
 	go func() {
@@ -44,7 +53,7 @@ func NewPool(
 			return true
 		})
 	}()
-	return p
+	return p, nil
 }
 
 func (p *Pool) Put(ctx context.Context, f ChannelTaskFunc) error {

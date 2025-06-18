@@ -24,7 +24,10 @@ func NewConnection(
 	tChan chan *ChannelTask,
 	url string,
 	config amqp.Config,
-) *Connection {
+) (*Connection, error) {
+	if count < 1 {
+		return nil, fmt.Errorf("count 参数小于1")
+	}
 	conn := &Connection{
 		config: config,
 		url:    url,
@@ -43,7 +46,7 @@ func NewConnection(
 		conn.run()
 	}()
 
-	return conn
+	return conn, nil
 }
 
 func (conn *Connection) Stop() {
