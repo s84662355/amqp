@@ -2,12 +2,18 @@ package consumer
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"slices"
 	"sync"
 	"time"
 
 	"github.com/streadway/amqp"
+)
+
+var (
+	ErrConnClosedCannotAddTask      = errors.New("the connection has been closed, and no more tasks can be added")
+	ErrConnAlreadyOpenCannotAddTask = errors.New("the connection is already open, and no more tasks can be added")
 )
 
 type Connection struct {
@@ -40,12 +46,12 @@ func (conn *Connection) AddTask(f ConsumerFunc) error {
 	defer conn.mu.Unlock()
 	select {
 	case <-conn.ctx.Done():
-		return fmt.Errorf("连接已经关闭,不能再添加任务")
+		return ErrConnClosedCannotAddTask
 	default:
 	}
 
 	if conn.status {
-		return fmt.Errorf("连接已经开启,不能再添加任务")
+		return ErrConnAlreadyOpenCannotAddTask
 	}
 
 	conn.channelPool = append(conn.channelPool, &channel{

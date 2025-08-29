@@ -1,8 +1,13 @@
 package producer
 
 import (
-	"fmt"
+	"errors"
 	"sync"
+)
+
+var (
+	ErrQueueClosedAndEmpty = errors.New("queue is closed and empty")
+	ErrIsClosed            = errors.New("is closed")
 )
 
 type nqueue[T any] struct {
@@ -57,7 +62,7 @@ func (q *nqueue[T]) Enqueue(v T) error {
 	defer q.recvLock.Unlock()
 
 	if !q.status {
-		return fmt.Errorf("is close") // 如果队列已关闭，返回错误信息。
+		return ErrIsClosed // 如果队列已关闭，返回错误信息。
 	}
 
 	n := q.nodePool.Get().(*node[T]) // 从对象池中获取一个节点。
@@ -158,7 +163,7 @@ func (q *nqueue[T]) DequeueFunc(fn DequeueFunc[T]) (err error) {
 				return // 如果 fn 函数返回 false，停止出队并返回。
 			}
 		} else if isClose {
-			return fmt.Errorf("queue is close and empty") // 如果队列关闭且为空，返回错误信息。
+			return ErrQueueClosedAndEmpty // 如果队列关闭且为空，返回错误信息。
 		}
 
 		q.recvLock.Lock()

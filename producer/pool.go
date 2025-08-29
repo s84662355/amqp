@@ -2,11 +2,13 @@ package producer
 
 import (
 	"context"
-	"fmt"
+	"errors"
 	"sync"
 
 	"github.com/streadway/amqp"
 )
+
+var ErrConnPoolClosed = errors.New("The connection pool has been closed.")
 
 type Pool struct {
 	connectionPool []*Connection
@@ -61,13 +63,13 @@ func (p *Pool) put(ctx context.Context, task *ChannelTask) error {
 	select {
 	case <-p.ctx.Done():
 		if task.isRun.CompareAndSwap(false, true) {
-			return fmt.Errorf("连接池已经关闭")
+			return ErrConnPoolClosed
 		}
 		err := <-task.res
 		return err
 	case <-ctx.Done():
 		if task.isRun.CompareAndSwap(false, true) {
-			return fmt.Errorf("处理超时")
+			return ctx.Err()
 		}
 		err := <-task.res
 		return err
