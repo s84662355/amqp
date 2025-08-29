@@ -9,7 +9,11 @@ import (
 )
 
 func main() {
-	pool := producer.NewPool(2, 5, "amqp://guest:guest@localhost:5672/", amqp.Config{})
+	pool, err := producer.NewPool(2, 5, "amqp://guest:guest@localhost:5672/", amqp.Config{})
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
 	defer pool.Stop()
 
 	for i := 0; i < 20; i++ {
