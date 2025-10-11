@@ -35,7 +35,7 @@ type Connection struct {
 //	error - 初始化错误（如count参数无效）
 func NewConnection(
 	count int,
-	tChan chan *ChannelTask,
+	tChan <-chan *ChannelTask,
 	url string,
 	config amqp.Config,
 ) (*Connection, error) {

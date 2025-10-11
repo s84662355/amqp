@@ -17,12 +17,11 @@ var (
 // Pool 管理RabbitMQ生产者连接池
 // 实现连接池创建、任务提交和资源管理等功能
 type Pool struct {
-	connectionPool []*Connection         // 连接池，存储多个RabbitMQ连接
-	taskQueue      *nqueue[*ChannelTask] // 任务队列，缓存待发送的消息任务
-	done           chan struct{}         // 通知连接池关闭的通道
-	ctx            context.Context       // 上下文，控制连接池生命周期
-	cancel         context.CancelFunc    // 取消上下文的函数
-	stop           sync.Once             // 确保Stop方法只执行一次
+	connectionPool []*Connection      // 连接池，存储多个RabbitMQ连接
+	ctx            context.Context    // 上下文，控制连接池生命周期
+	cancel         context.CancelFunc // 取消上下文的函数
+	stop           sync.Once          // 确保Stop方法只执行一次
+	taskQueue      chan *ChannelTask
 }
 
 // NewPool 创建新的RabbitMQ生产者连接池
@@ -53,35 +52,19 @@ func NewPool(
 		return nil, ErrChannelCountLessThanOne
 	}
 
-	p := &Pool{
-		taskQueue: newnqueue[*ChannelTask](), // 初始化任务队列
-		done:      make(chan struct{}),       // 初始化完成通道
-	}
+	p := &Pool{}
 	// 创建任务通道（无缓冲，确保任务发送同步）
-	tChan := make(chan *ChannelTask, 0)
+	p.taskQueue = make(chan *ChannelTask, 0)
 	// 初始化连接池
 	p.connectionPool = make([]*Connection, connCount)
 	for i := 0; i < connCount; i++ {
 		// 创建连接并添加到连接池
-		conn, _ := NewConnection(channelCount, tChan, url, config)
+		conn, _ := NewConnection(channelCount, p.taskQueue, url, config)
 		p.connectionPool[i] = conn
 	}
 	// 创建可取消的上下文
 	p.ctx, p.cancel = context.WithCancel(context.Background())
 
-	// 启动任务队列处理协程
-	go func() {
-		defer close(p.done)
-		// 设置任务出队处理函数
-		p.taskQueue.DequeueFunc(func(task *ChannelTask, isClose bool) bool {
-			select {
-			case <-p.ctx.Done():
-				return false
-			case tChan <- task: // 将任务发送到通道
-			}
-			return true
-		})
-	}()
 	return p, nil
 }
 
@@ -104,8 +87,12 @@ func (p *Pool) Put(ctx context.Context, f ChannelTaskFunc) error {
 // put 内部任务提交实现
 func (p *Pool) put(ctx context.Context, task *ChannelTask) error {
 	// 将任务入队
-	if err := p.taskQueue.Enqueue(task); err != nil {
-		return err
+	select {
+	case p.taskQueue <- task:
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-p.ctx.Done():
+		return ErrConnPoolClosed
 	}
 
 	// 等待任务执行结果或上下文取消
@@ -134,12 +121,8 @@ func (p *Pool) put(ctx context.Context, task *ChannelTask) error {
 // 确保所有连接和任务正常终止
 func (p *Pool) Stop() {
 	p.stop.Do(func() {
-		// 关闭任务队列
-		p.taskQueue.Close()
 		// 取消上下文，通知所有协程终止
 		p.cancel()
-		// 等待任务处理协程完成
-		<-p.done
 
 		wg := &sync.WaitGroup{}
 		defer wg.Wait()
