@@ -89,31 +89,12 @@ func (p *Pool) put(ctx context.Context, task *ChannelTask) error {
 	// 将任务入队
 	select {
 	case p.taskQueue <- task:
+		err := <-task.res
+		return err
 	case <-ctx.Done():
 		return ctx.Err()
 	case <-p.ctx.Done():
 		return ErrConnPoolClosed
-	}
-
-	// 等待任务执行结果或上下文取消
-	select {
-	case <-p.ctx.Done():
-		// 连接池关闭时处理任务
-		if task.isRun.CompareAndSwap(false, true) {
-			return ErrConnPoolClosed
-		}
-		err := <-task.res
-		return err
-	case <-ctx.Done():
-		// 任务上下文超时
-		if task.isRun.CompareAndSwap(false, true) {
-			return ctx.Err()
-		}
-		err := <-task.res
-		return err
-	case err := <-task.res:
-		// 获取任务执行结果
-		return err
 	}
 }
 

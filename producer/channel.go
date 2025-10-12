@@ -2,7 +2,6 @@ package producer
 
 import (
 	"context"
-	"sync/atomic"
 	"time"
 
 	"github.com/streadway/amqp"
@@ -21,9 +20,8 @@ type ChannelTaskFunc func(c Channel) error
 // ChannelTask 封装生产者任务
 // 用于在通道中传递和执行消息发送任务
 type ChannelTask struct {
-	f     ChannelTaskFunc // 任务执行函数
-	isRun atomic.Bool     // 任务执行状态标识（避免并发执行）
-	res   chan error      // 任务执行结果通道
+	f   ChannelTaskFunc // 任务执行函数
+	res chan error      // 任务执行结果通道
 }
 
 // Channel 定义RabbitMQ生产者通道操作接口
@@ -171,10 +169,6 @@ func (ch *channel) runTask(achannel *amqp.Channel) {
 		case t, ok := <-ch.taskChan:
 			// 接收任务
 			if ok && t != nil {
-				// 使用CAS操作确保任务只执行一次
-				if !t.isRun.CompareAndSwap(false, true) {
-					continue
-				}
 				// 执行任务并返回结果
 				t.res <- t.f(c)
 			} else {
