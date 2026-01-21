@@ -94,6 +94,7 @@ func (conn *Connection) Start() <-chan struct{} {
 
 		select {
 		case <-conn.ctx.Done():
+			close(conn.done)
 			return
 		default:
 		}
