@@ -109,7 +109,6 @@ func (ch *Ch) Confirm(noWait bool) error {
 	return ch.achannel.Confirm(noWait)
 }
 
-//
 func (ch *Ch) Close() error {
 	return ch.achannel.Close()
 }

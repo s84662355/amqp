@@ -87,18 +87,16 @@ func (conn *Connection) AddTask(f ConsumerFunc) error {
 func (conn *Connection) Start() <-chan struct{} {
 	conn.stop.Do(func() {
 		conn.mu.Lock()
-		defer conn.mu.Unlock()
+		// 标记连接为已启动状态
+		conn.status = true
+		conn.done = make(chan struct{})
+		conn.mu.Unlock()
 
-		// 检查上下文是否已取消
 		select {
 		case <-conn.ctx.Done():
 			return
 		default:
 		}
-
-		// 标记连接为已启动状态
-		conn.status = true
-		conn.done = make(chan struct{})
 
 		// 启动连接运行协程（在后台处理连接和重连逻辑）
 		go func() {
@@ -113,14 +111,13 @@ func (conn *Connection) Start() <-chan struct{} {
 // 确保资源释放和任务正常终止
 func (conn *Connection) Stop() {
 	conn.stop.Do(func() {
-		conn.mu.Lock()
-		// 取消上下文，通知所有协程终止
 		conn.cancel()
+		var done chan struct{}
+		conn.mu.Lock()
+		done = conn.done
 		conn.mu.Unlock()
-
-		// 等待连接运行协程完成
-		if conn.done != nil {
-			<-conn.done
+		if done != nil {
+			<-done
 		}
 	})
 }
