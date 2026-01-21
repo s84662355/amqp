@@ -39,6 +39,7 @@ type Channel interface {
 	TxCommit() error
 	TxRollback() error
 	Confirm(noWait bool) error
+	Close() error 
 }
 
 // Ch 实现Channel接口，封装amqp.Channel
