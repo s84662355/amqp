@@ -39,7 +39,7 @@ type Channel interface {
 	TxCommit() error
 	TxRollback() error
 	Confirm(noWait bool) error
-	Close() error 
+	Close() error
 }
 
 // Ch 实现Channel接口，封装amqp.Channel
@@ -107,6 +107,11 @@ func (ch *Ch) TxRollback() error {
 // Confirm 开启发布确认模式
 func (ch *Ch) Confirm(noWait bool) error {
 	return ch.achannel.Confirm(noWait)
+}
+
+//
+func (ch *Ch) Close() error {
+	return ch.achannel.Close()
 }
 
 // channel 生产者通道实现
