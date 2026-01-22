@@ -40,6 +40,7 @@ type Channel interface {
 	TxRollback() error
 	Confirm(noWait bool) error
 	Close() error
+	Get(queue string, autoAck bool)
 }
 
 // Ch 实现Channel接口，封装amqp.Channel
@@ -113,6 +114,10 @@ func (ch *Ch) Close() error {
 	return ch.achannel.Close()
 }
 
+func (ch *Ch) Get(queue string, autoAck bool) {
+	ch.achannel.Get(queue, autoAck)
+}
+
 // channel 生产者通道实现
 // 管理通道的生命周期和任务执行
 type channel struct {
@@ -164,6 +169,12 @@ func (ch *channel) runTask(achannel *amqp.Channel) {
 
 	// 循环处理任务通道中的任务
 	for {
+		select {
+		case <-notifyClose:
+			// 通道关闭时退出
+			return
+		default:
+		}
 		select {
 		case <-ch.ctx.Done():
 			// 上下文取消时退出
