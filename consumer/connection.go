@@ -167,8 +167,9 @@ func (conn *Connection) run() {
 				return
 			}
 			// 等待1秒后重试连接（避免频繁重连）
-			ctx, _ := context.WithTimeout(conn.ctx, 1*time.Second)
+			ctx, c := context.WithTimeout(conn.ctx, 1*time.Second)
 			<-ctx.Done()
+			c()
 		}
 	}
 }

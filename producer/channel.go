@@ -149,8 +149,9 @@ func (ch *channel) run() {
 			}
 
 			// 等待1秒后重试（避免频繁重连）
-			ctx, _ := context.WithTimeout(ch.ctx, 1*time.Second)
+			ctx, c := context.WithTimeout(ch.ctx, 1*time.Second)
 			<-ctx.Done()
+			c()
 		}
 	}
 }
